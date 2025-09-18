@@ -22,7 +22,7 @@ public enum Kind {
     case thread
     case `nil`
     case none
-    
+
     internal func luaType() -> Int32 {
         switch self {
         case .string: return LUA_TSTRING
@@ -44,15 +44,15 @@ public enum Kind {
 }
 
 open class VirtualMachine {
-    
+
     public let state = luaL_newstate()
 
     open var errorHandler: ErrorHandler? = { print("error: \($0)") }
-    
+
     public init(openLibs: Bool = true) {
         if openLibs { luaL_openlibs(state) }
     }
-    
+
     deinit {
         lua_close(state)
     }
@@ -87,7 +87,7 @@ open class VirtualMachine {
         default: return .none
         }
     }
-    
+
     // pops the value off the stack completely and returns it
     internal func popValue(_ pos: Int) -> Value? {
         moveToStackTop(pos)
@@ -118,12 +118,12 @@ open class VirtualMachine {
         pop()
         return v
     }
-    
+
     open var globals: Table {
         rawGet(tablePosition: RegistryIndex, index: GlobalsTable)
         return popValue(-1) as! Table
     }
-    
+
     open var registry: Table {
         pushFromStack(RegistryIndex)
         return popValue(-1) as! Table
@@ -146,25 +146,25 @@ open class VirtualMachine {
             return .error(popError())
         }
     }
-    
+
     open func createTable(_ sequenceCapacity: Int = 0, keyCapacity: Int = 0) -> Table {
         lua_createtable(state, Int32(sequenceCapacity), Int32(keyCapacity))
         return popValue(-1) as! Table
     }
-    
+
     internal func popError() -> String {
         let err = popValue(-1) as! String
         if let fn = errorHandler { fn(err) }
         return err
     }
-    
+
     open func createUserdataMaybe<T: CustomTypeInstance>(_ o: T?) -> Userdata? {
         if let u = o {
             return createUserdata(u)
         }
         return nil
     }
-    
+
     open func createUserdata<T: CustomTypeInstance>(_ o: T) -> Userdata {
         let userdata = lua_newuserdatauv(state, MemoryLayout<T>.size, 1) // this both pushes ptr onto stack and returns it
 
@@ -174,7 +174,7 @@ open class VirtualMachine {
         luaL_setmetatable(state, T.luaTypeName().cString(using: .utf8)) // this requires ptr to be on the stack
         return popValue(-1) as! Userdata // this pops ptr off stack
     }
-    
+
     public enum EvalResults {
         case values([Value])
         case error(String)
@@ -211,7 +211,7 @@ open class VirtualMachine {
         let f: @convention(block) (OpaquePointer) -> Int32 = { [weak self] _ in
             if self == nil { return 0 }
             let vm = self!
-            
+
             // check types
             for i in 0 ..< vm.stackSize() {
                 let typeChecker = typeCheckers[i]
@@ -220,14 +220,14 @@ open class VirtualMachine {
                     vm.argError(expectedType, at: i+1)
                 }
             }
-            
+
             // build args list
             let args = Arguments()
             for _ in 0 ..< vm.stackSize() {
                 let arg = vm.popValue(1)!
                 args.values.append(arg)
             }
-            
+
             // call fn
             switch fn(args) {
             case .nothing:
@@ -254,28 +254,28 @@ open class VirtualMachine {
         }
         let block: AnyObject = unsafeBitCast(f, to: AnyObject.self)
         let imp = imp_implementationWithBlock(block)
-        
+
         let fp = unsafeBitCast(imp, to: lua_CFunction.self)
         lua_pushcclosure(state, fp, 0)
         return popValue(-1) as! Function
     }
-    
+
     fileprivate func argError(_ expectedType: String, at argPosition: Int) {
         luaL_typeerror(state, Int32(argPosition), expectedType.cString(using: .utf8))
     }
-    
+
     open func createCustomType<T>(_ setup: (CustomType<T>) -> Void) -> CustomType<T> {
         lua_createtable(state, 0, 0)
         let lib = CustomType<T>(self)
         pop()
-        
+
         setup(lib)
-        
+
         registry[T.luaTypeName()] = lib
         lib.becomeMetatableFor(lib)
         lib["__index"] = lib
         lib["__name"] = T.luaTypeName()
-        
+
         let gc = lib.gc
         lib["__gc"] = createFunction([CustomType<T>.arg]) { args in
             let ud = args.userdata
@@ -284,7 +284,7 @@ open class VirtualMachine {
             gc?(o)
             return .nothing
         }
-        
+
         if let eq = lib.eq {
             lib["__eq"] = createFunction([CustomType<T>.arg, CustomType<T>.arg]) { args in
                 let a: T = args.customType()
@@ -294,9 +294,9 @@ open class VirtualMachine {
         }
         return lib
     }
-    
+
     // stack
-    
+
     internal func moveToStackTop(_ position: Int) {
         var position = position
         if position == -1 || position == stackSize() { return }
@@ -304,31 +304,31 @@ open class VirtualMachine {
         pushFromStack(position)
         remove(position)
     }
-    
+
     internal func ref(_ position: Int) -> Int { return Int(luaL_ref(state, Int32(position))) }
     internal func unref(_ table: Int, _ position: Int) { luaL_unref(state, Int32(table), Int32(position)) }
     internal func absolutePosition(_ position: Int) -> Int { return Int(lua_absindex(state, Int32(position))) }
     internal func rawGet(tablePosition: Int, index: Int) { lua_rawgeti(state, Int32(tablePosition), lua_Integer(index)) }
-    
+
     internal func pushFromStack(_ position: Int) {
         lua_pushvalue(state, Int32(position))
     }
-    
+
     internal func pop(_ n: Int = 1) {
         lua_settop(state, -Int32(n)-1)
     }
-    
+
     internal func rotate(_ position: Int, n: Int) {
         lua_rotate(state, Int32(position), Int32(n))
     }
-    
+
     internal func remove(_ position: Int) {
         rotate(position, n: -1)
         pop(1)
     }
-    
+
     internal func stackSize() -> Int {
         return Int(lua_gettop(state))
     }
-    
+
 }
