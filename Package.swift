@@ -15,7 +15,7 @@ let package = Package(
   dependencies: [
     // Dependencies declare other packages that this package depends on.
     // .package(url: /* package url */, from: "1.0.0"),
-    .package(url: "https://github.com/SwiftyLua/CLua", from: "5.4.7"),
+    .package(url: "https://github.com/SwiftyLua/CLua", from: "5.4.7-patch-1"),
     .package(url: "https://github.com/Quick/Quick", from: "7.6.2"),
     .package(url: "https://github.com/Quick/Nimble", from: "13.7.1")
   ],
