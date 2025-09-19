@@ -34,9 +34,9 @@ open class LightUserdata: StoredValue {
 }
 
 public protocol CustomTypeInstance {
-    
+
     static func luaTypeName() -> String
-    
+
 }
 
 open class CustomType<T: CustomTypeInstance>: Table {

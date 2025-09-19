@@ -25,6 +25,9 @@ let package = Package(
       name: "lua4swift",
       dependencies: [
         "CLua"
+      ],
+      swiftSettings: [
+        .enableExperimentalFeature("StrictConcurrency=minimal")
       ]),
     .testTarget(
       name: "lua4swiftTests",
