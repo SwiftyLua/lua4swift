@@ -3,6 +3,19 @@ import CLua
 
 internal let RegistryIndex = Int(-LUAI_MAXSTACK - 1000)
 private let GlobalsTable = Int(LUA_RIDX_GLOBALS)
+private let FunctionWrapperUpvalueIndex: Int32 = 1
+
+private func luaUpvalueIndex(_ index: Int32) -> Int32 {
+    Int32(RegistryIndex) - index
+}
+
+private final class SwiftFunctionWrapper {
+    let handler: (OpaquePointer?) -> Int32
+
+    init(handler: @escaping (OpaquePointer?) -> Int32) {
+        self.handler = handler
+    }
+}
 
 public enum MaybeFunction {
     case value(Function)
@@ -46,6 +59,7 @@ public enum Kind {
 open class VirtualMachine {
 
     public let state = luaL_newstate()
+    private var functionWrappers: [SwiftFunctionWrapper] = []
 
     open var errorHandler: ErrorHandler? = { print("error: \($0)") }
 
@@ -208,9 +222,8 @@ open class VirtualMachine {
     }
 
     open func createFunction(_ typeCheckers: [TypeChecker], _ fn: @escaping SwiftFunction) -> Function {
-        let f: @convention(block) (OpaquePointer) -> Int32 = { [weak self] _ in
-            if self == nil { return 0 }
-            let vm = self!
+        let wrapper = SwiftFunctionWrapper { [weak self] _ in
+            guard let vm = self else { return 0 }
 
             // check types
             for i in 0 ..< vm.stackSize() {
@@ -252,12 +265,22 @@ open class VirtualMachine {
                 return 0 // uhh, we don't actually get here
             }
         }
-        let block: AnyObject = unsafeBitCast(f, to: AnyObject.self)
-        let imp = imp_implementationWithBlock(block)
+        functionWrappers.append(wrapper)
+        let pointer = Unmanaged.passUnretained(wrapper).toOpaque()
 
-        let fp = unsafeBitCast(imp, to: lua_CFunction.self)
-        lua_pushcclosure(state, fp, 0)
+        lua_pushlightuserdata(state, pointer)
+        lua_pushcclosure(state, VirtualMachine.swiftFunctionTrampoline, 1)
         return popValue(-1) as! Function
+    }
+
+    private static let swiftFunctionTrampoline: lua_CFunction = { state in
+        guard let state else { return 0 }
+        guard let pointer = lua_touserdata(state, luaUpvalueIndex(FunctionWrapperUpvalueIndex)) else {
+            return 0
+        }
+
+        let wrapper = Unmanaged<SwiftFunctionWrapper>.fromOpaque(pointer).takeUnretainedValue()
+        return wrapper.handler(state)
     }
 
     fileprivate func argError(_ expectedType: String, at argPosition: Int) {
