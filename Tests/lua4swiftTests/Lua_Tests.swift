@@ -1,19 +1,20 @@
-import Cocoa
-import XCTest
+import Foundation
+import Testing
 
 @testable import lua4swift
 
-class Lua_Tests: XCTestCase {
+@Suite
+struct Lua_Tests {
 
-  func testFundamentals() {
+  @Test func fundamentals() {
     let vm = VirtualMachine()
     let table = vm.createTable()
     table[3] = "foo"
-    XCTAssert(table[3] is String)
-    XCTAssertEqual(table[3] as! String, "foo")
+    #expect(table[3] is String)
+    #expect(table[3] as! String == "foo")
   }
 
-  func testStringX() {
+  @Test func stringX() {
     let vm = VirtualMachine()
 
     let stringxLib = vm.createTable()
@@ -33,27 +34,27 @@ class Lua_Tests: XCTestCase {
 
     switch vm.eval("return stringx.split('hello world', ' ')", args: []) {
       case let .values(values):
-        XCTAssertEqual(values.count, 1)
-        XCTAssert(values[0] is Table)
+        #expect(values.count == 1)
+        #expect(values[0] is Table)
         let array: [String] = (values[0] as! Table).asSequence()
-        XCTAssertEqual(array, ["hello", "world"])
+        #expect(array == ["hello", "world"])
       case let .error(e):
-        XCTFail(e)
+        Issue.record("Lua eval error: \(e)")
     }
   }
 
-  func testCustomType() {
+  @Test func customType() {
 
-    class Note : CustomTypeInstance {
+    class Note: CustomTypeInstance, @unchecked Sendable {
       var name = ""
       static func luaTypeName() -> String {
         return "note"
       }
     }
-    
+
     let vm = VirtualMachine()
 
-    let noteLib:CustomType<Note> = vm.createCustomType {
+    let noteLib: CustomType<Note> = vm.createCustomType {
       type in
       type["setName"] = type.createMethod([String.arg]) {
         note, args in
@@ -78,32 +79,29 @@ class Lua_Tests: XCTestCase {
     vm.globals["note"] = noteLib
 
     _ = vm.eval("myNote = note.new('a custom note')")
-    XCTAssert(vm.globals["myNote"] is Userdata)
+    #expect(vm.globals["myNote"] is Userdata)
 
     // extract the note
     // and see if the name is the same
 
-    let myNote:Note = (vm.globals["myNote"] as! Userdata).toCustomType()
-    XCTAssert(myNote.name == "a custom note")
+    let myNote: Note = (vm.globals["myNote"] as! Userdata).toCustomType()
+    #expect(myNote.name == "a custom note")
 
     // This is just to highlight changes in Swift
     // will get reflected in Lua as well
-    // TODO: redirect output from Lua to check if both
-    // are equal
 
-    myNote.name = "now from XCTest"
+    myNote.name = "now from Swift Testing"
     _ = vm.eval("print(myNote:getName())")
 
     // further checks to change name in Lua
     // and see change reflected in the Swift object
 
     _ = vm.eval("myNote:setName('even')")
-    XCTAssert(myNote.name == "even")
+    #expect(myNote.name == "even")
 
     _ = vm.eval("myNote:setName('odd')")
-    XCTAssert(myNote.name == "odd")
+    #expect(myNote.name == "odd")
 
   }
-
 
 }

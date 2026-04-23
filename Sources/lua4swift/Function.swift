@@ -1,11 +1,11 @@
 import CLua
 
-public enum FunctionResults {
+public enum FunctionResults: @unchecked Sendable {
     case values([Value])
     case error(String)
 }
 
-open class Function: StoredValue {
+open class Function: StoredValue, @unchecked Sendable {
     
     open func call(_ args: [Value]) -> FunctionResults {
         let debugTable = vm.globals["debug"] as! Table
@@ -48,18 +48,18 @@ open class Function: StoredValue {
     
 }
 
-public typealias TypeChecker = (VirtualMachine, Value) -> String?
+public typealias TypeChecker = @Sendable (VirtualMachine, Value) -> String?
 
-public enum SwiftReturnValue {
+public enum SwiftReturnValue: @unchecked Sendable {
     case value(Value?)
     case values([Value])
     case nothing // convenience for Values([])
     case error(String)
 }
 
-public typealias SwiftFunction = (Arguments) -> SwiftReturnValue
+public typealias SwiftFunction = @Sendable (Arguments) -> SwiftReturnValue
 
-open class Arguments {
+open class Arguments: @unchecked Sendable {
     
     internal var values = [Value]()
     

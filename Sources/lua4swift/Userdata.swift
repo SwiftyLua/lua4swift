@@ -1,7 +1,7 @@
 import Foundation
 import CLua
 
-open class Userdata: StoredValue {
+open class Userdata: StoredValue, @unchecked Sendable {
     
     open func userdataPointer<T>() -> UnsafeMutablePointer<T> {
         push(vm)
@@ -22,7 +22,7 @@ open class Userdata: StoredValue {
     
 }
 
-open class LightUserdata: StoredValue {
+open class LightUserdata: StoredValue, @unchecked Sendable {
     
     override open func kind() -> Kind { return .lightUserdata }
     
@@ -33,13 +33,13 @@ open class LightUserdata: StoredValue {
     
 }
 
-public protocol CustomTypeInstance {
+public protocol CustomTypeInstance: Sendable {
 
     static func luaTypeName() -> String
 
 }
 
-open class CustomType<T: CustomTypeInstance>: Table {
+open class CustomType<T: CustomTypeInstance>: Table, @unchecked Sendable {
     
     override open class func arg(_ vm: VirtualMachine, value: Value) -> String? {
         value.push(vm)
@@ -53,10 +53,10 @@ open class CustomType<T: CustomTypeInstance>: Table {
         super.init(vm)
     }
     
-    open var gc: ((T) -> Void)?
-    open var eq: ((T, T) -> Bool)?
+    open var gc: (@Sendable (T) -> Void)?
+    open var eq: (@Sendable (T, T) -> Bool)?
     
-    public func createMethod(_ typeCheckers: [TypeChecker], _ fn: @escaping (T, Arguments) -> SwiftReturnValue) -> Function {
+    public func createMethod(_ typeCheckers: [TypeChecker], _ fn: @escaping @Sendable (T, Arguments) -> SwiftReturnValue) -> Function {
         var typeCheckers = typeCheckers
         typeCheckers.insert(CustomType<T>.arg, at: 0)
         return vm.createFunction(typeCheckers) { (args: Arguments) in
