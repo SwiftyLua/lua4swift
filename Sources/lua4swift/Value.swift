@@ -1,12 +1,12 @@
 import CLua
 
-public protocol Value {
+public protocol Value: Sendable {
     func push(_ vm: VirtualMachine)
     func kind() -> Kind
     static func arg(_ vm: VirtualMachine, value: Value) -> String?
 }
 
-open class StoredValue: Value, Equatable {
+open class StoredValue: Value, Equatable, @unchecked Sendable {
     
     fileprivate let registryLocation: Int
     internal unowned var vm: VirtualMachine

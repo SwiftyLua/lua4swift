@@ -1,6 +1,6 @@
 import CLua
 
-open class Thread: StoredValue {
+open class Thread: StoredValue, @unchecked Sendable {
     
     override open func kind() -> Kind { return .thread }
     

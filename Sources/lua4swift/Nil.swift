@@ -1,6 +1,6 @@
 import CLua
 
-open class Nil: Value, Equatable {
+open class Nil: Value, Equatable, @unchecked Sendable {
     
     open func push(_ vm: VirtualMachine) {
         lua_pushnil(vm.state)

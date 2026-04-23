@@ -1,6 +1,6 @@
 import CLua
 
-open class Table: StoredValue {
+open class Table: StoredValue, @unchecked Sendable {
     
     override open func kind() -> Kind { return .table }
     

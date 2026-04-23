@@ -4,14 +4,14 @@ import CLua
 internal let RegistryIndex = Int(-LUAI_MAXSTACK - 1000)
 private let GlobalsTable = Int(LUA_RIDX_GLOBALS)
 
-public enum MaybeFunction {
+public enum MaybeFunction: @unchecked Sendable {
     case value(Function)
     case error(String)
 }
 
-public typealias ErrorHandler = (String) -> Void
+public typealias ErrorHandler = @Sendable (String) -> Void
 
-public enum Kind {
+public enum Kind: Sendable {
     case string
     case number
     case boolean
@@ -43,7 +43,7 @@ public enum Kind {
     }
 }
 
-open class VirtualMachine {
+open class VirtualMachine: @unchecked Sendable {
 
     public let state = luaL_newstate()
 
@@ -175,7 +175,7 @@ open class VirtualMachine {
         return popValue(-1) as! Userdata // this pops ptr off stack
     }
 
-    public enum EvalResults {
+    public enum EvalResults: @unchecked Sendable {
         case values([Value])
         case error(String)
     }
@@ -208,7 +208,7 @@ open class VirtualMachine {
     }
 
     open func createFunction(_ typeCheckers: [TypeChecker], _ fn: @escaping SwiftFunction) -> Function {
-        let f: @convention(block) (OpaquePointer) -> Int32 = { [weak self] _ in
+        let f: @Sendable @convention(block) (OpaquePointer) -> Int32 = { [weak self] _ in
             if self == nil { return 0 }
             let vm = self!
 
@@ -264,7 +264,7 @@ open class VirtualMachine {
         luaL_typeerror(state, Int32(argPosition), expectedType.cString(using: .utf8))
     }
 
-    open func createCustomType<T>(_ setup: (CustomType<T>) -> Void) -> CustomType<T> {
+    open func createCustomType<T>(_ setup: @Sendable (CustomType<T>) -> Void) -> CustomType<T> {
         lua_createtable(state, 0, 0)
         let lib = CustomType<T>(self)
         pop()

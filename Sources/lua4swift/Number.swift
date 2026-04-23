@@ -1,6 +1,6 @@
 import CLua
 
-open class Number: StoredValue, CustomDebugStringConvertible {
+open class Number: StoredValue, CustomDebugStringConvertible, @unchecked Sendable {
     
     override open func kind() -> Kind { return .number }
     
